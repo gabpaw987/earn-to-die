@@ -6,6 +6,8 @@ Drive your rig across a zombie-infested wasteland, splatter the horde, scavenge 
 
 > Status: **M1 — full game loop** (run → results → garage/upgrades → next stage), persistent progress via `localStorage`. All art is generated procedurally at runtime (no binary assets committed).
 
+**Tracking:** [GitHub repo](https://github.com/gabpaw987/earn-to-die) · [Linear project](https://linear.app/trampolinegame/project/earn-to-die-evac-run-4c2d9e8d78ba) (roadmap & issues)
+
 ## Play / Dev
 
 ```bash
