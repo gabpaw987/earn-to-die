@@ -9,3 +9,6 @@ dist/
 npm-debug.log*
 .env
 .env.*
+
+.playwright-mcp/
+etd-*.png

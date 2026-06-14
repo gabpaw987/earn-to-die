@@ -36,8 +36,10 @@ const config: Phaser.Types.Core.GameConfig = {
   ],
 };
 
-// eslint-disable-next-line no-new
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
+
+// Expose for debugging / automated testing in dev.
+(window as unknown as { game: Phaser.Game }).game = game;
 
 // Re-export scene keys for any external tooling.
 export { SCENES };
