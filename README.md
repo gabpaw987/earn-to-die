@@ -4,7 +4,21 @@ An **Earn to Die–inspired** 2D physics side-scroller built with **Phaser 3 + T
 
 Drive your rig across a zombie-infested wasteland, splatter the horde, scavenge fuel and cash, then spend your earnings in the **Garage** to upgrade engine, wheels, fuel tank, armor, and weapons — far enough to reach the evac chopper at the end of each stage.
 
-> Status: **M1 — full game loop** (run → results → garage/upgrades → next stage), persistent progress via `localStorage`. All art is generated procedurally at runtime (no binary assets committed).
+> Status: **Big content update** on top of the M1 loop — now with synthesized audio, particle/screen-shake juice, kill combos, stunts, 8 themed stages, 3 vehicles, and zombie/obstacle variety. Persistent progress via `localStorage`. All art + audio generated procedurally at runtime (no binary assets committed).
+
+## Features
+
+- **8 themed stages** — a day → dusk → night → blood-moon arc, each with parallax skies, a sun/moon/blood-moon, layered hills, fog, and tinted terrain.
+- **Physics driving** — Matter compound car (chassis + sprung wheels), throttle/brake, in-air flip control, fuel, and nitro boost.
+- **Synthesized audio** — Web Audio engine drone that tracks speed/throttle plus SFX for impacts, splats, coins, fuel, gunfire, boost, landings, stunts, UI, win/lose. Mute toggle, persisted.
+- **Juice** — dust, exhaust, sparks and blood particles, screen shake, camera flash, floating `+$` popups.
+- **Kill combos** — chain kills within a short window for a rising cash multiplier (up to 4×).
+- **Stunts** — flips and big air award bonus cash.
+- **Zombie variety** — walkers, tanky brutes (need speed to splatter), and fast crawlers.
+- **Obstacles** — smashable wrecks (cash), blocking rocks (jolt), and launch ramps (stunts).
+- **3 vehicles** — Rustbucket, Muscle Car, War Rig — buyable & selectable, with upgrades reflected on the car (armor plate, roof gun, bigger wheels, vehicle colour).
+- **Garage economy** — 6 upgrade categories × multiple tiers, persistent cash + progress.
+- **Pause menu** (ESC/P) with resume, mute, and quit.
 
 **Tracking:** [GitHub repo](https://github.com/gabpaw987/earn-to-die) · [Linear project](https://linear.app/trampolinegame/project/earn-to-die-evac-run-4c2d9e8d78ba) (roadmap & issues)
 
