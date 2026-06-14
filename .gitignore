@@ -1,5 +1,7 @@
 node_modules/
 dist/
+.omc/
+.claude/
 *.local
 .DS_Store
 .vite/
