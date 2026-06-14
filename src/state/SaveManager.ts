@@ -1,6 +1,7 @@
 import { SAVE_KEY } from '../config';
-import type { SaveData, UpgradeKey } from '../types';
+import type { SaveData, UpgradeKey, CarStats } from '../types';
 import { defaultTiers, resolveStats, UPGRADES, nextTier } from '../data/upgrades';
+import { VEHICLES, getVehicle, DEFAULT_VEHICLE } from '../data/vehicles';
 
 /**
  * Single source of truth for persistent player state.
@@ -16,6 +17,11 @@ class SaveManagerImpl {
       stageUnlocked: 0,
       bestDistance: {},
       lifetimeKills: 0,
+      ownedVehicles: [DEFAULT_VEHICLE],
+      selectedVehicle: DEFAULT_VEHICLE,
+      muted: false,
+      bestCombo: 0,
+      lifetimeStunts: 0,
     };
   }
 
@@ -29,6 +35,10 @@ class SaveManagerImpl {
           ...parsed,
           tiers: { ...defaultTiers(), ...(parsed.tiers ?? {}) },
           bestDistance: { ...(parsed.bestDistance ?? {}) },
+          ownedVehicles: parsed.ownedVehicles?.length
+            ? parsed.ownedVehicles
+            : [DEFAULT_VEHICLE],
+          selectedVehicle: parsed.selectedVehicle ?? DEFAULT_VEHICLE,
         };
       }
     } catch {
@@ -49,8 +59,21 @@ class SaveManagerImpl {
     return this.data;
   }
 
-  stats() {
-    return resolveStats(this.data.tiers);
+  /** Effective car stats = selected vehicle base × upgrade tiers. */
+  stats(): CarStats {
+    const veh = getVehicle(this.data.selectedVehicle);
+    const u = resolveStats(this.data.tiers);
+    return {
+      engine: veh.baseEngine * u.engine,
+      wheels: veh.baseWheels * u.wheels,
+      maxFuel: veh.baseFuel + u.fuelBonus,
+      armor: u.armor,
+      weaponLevel: u.weaponLevel,
+      boosterCharges: u.boosterCharges,
+      mass: veh.mass,
+      chassisColor: veh.chassisColor,
+      vehicleKey: veh.key,
+    };
   }
 
   addCash(amount: number): void {
@@ -75,10 +98,47 @@ class SaveManagerImpl {
     return UPGRADES[key].tiers[this.data.tiers[key]].label;
   }
 
-  recordRun(stageIndex: number, distanceM: number, kills: number): void {
+  // --- Vehicles ---
+
+  ownsVehicle(key: string): boolean {
+    return this.data.ownedVehicles.includes(key);
+  }
+
+  /** Buy a vehicle if affordable + not owned. Returns true on success. */
+  buyVehicle(key: string): boolean {
+    if (this.ownsVehicle(key)) return false;
+    const veh = VEHICLES.find((v) => v.key === key);
+    if (!veh || this.data.cash < veh.cost) return false;
+    this.data.cash -= veh.cost;
+    this.data.ownedVehicles.push(key);
+    this.save();
+    return true;
+  }
+
+  /** Select an owned vehicle. Returns true on success. */
+  selectVehicle(key: string): boolean {
+    if (!this.ownsVehicle(key)) return false;
+    this.data.selectedVehicle = key;
+    this.save();
+    return true;
+  }
+
+  // --- Audio ---
+
+  get muted(): boolean {
+    return this.data.muted;
+  }
+  setMuted(m: boolean): void {
+    this.data.muted = m;
+    this.save();
+  }
+
+  recordRun(stageIndex: number, distanceM: number, kills: number, maxCombo: number, stunts: number): void {
     const prevBest = this.data.bestDistance[stageIndex] ?? 0;
     if (distanceM > prevBest) this.data.bestDistance[stageIndex] = Math.round(distanceM);
     this.data.lifetimeKills += kills;
+    this.data.lifetimeStunts += stunts;
+    if (maxCombo > this.data.bestCombo) this.data.bestCombo = maxCombo;
     this.save();
   }
 

@@ -7,6 +7,7 @@ export type PickupKind = 'fuel' | 'cash';
 export class Pickup {
   readonly sprite: Phaser.Physics.Matter.Sprite;
   taken = false;
+  private bob: Phaser.Tweens.Tween;
 
   constructor(
     scene: Phaser.Scene,
@@ -24,7 +25,7 @@ export class Pickup {
     this.sprite.setDepth(7);
     this.sprite.setData('pickup', this);
     // gentle bob
-    scene.tweens.add({
+    this.bob = scene.tweens.add({
       targets: this.sprite,
       y: this.sprite.y - 8,
       duration: 900,
@@ -37,6 +38,8 @@ export class Pickup {
   collect() {
     if (this.taken) return;
     this.taken = true;
+    // Kill the infinite bob tween BEFORE destroying, or it touches a dead body.
+    this.bob.remove();
     this.sprite.destroy();
   }
 }

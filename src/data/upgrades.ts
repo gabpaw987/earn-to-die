@@ -1,4 +1,4 @@
-import type { UpgradeDef, UpgradeKey, OwnedTiers, CarStats } from '../types';
+import type { UpgradeDef, UpgradeKey, OwnedTiers, UpgradeStats } from '../types';
 
 /**
  * Upgrade catalog. tiers[0] is the free starting tier (cost ignored).
@@ -37,13 +37,13 @@ export const UPGRADES: Record<UpgradeKey, UpgradeDef> = {
   fuel: {
     key: 'fuel',
     name: 'Fuel Tank',
-    blurb: 'More fuel = a longer run before you stall out.',
+    blurb: 'Bonus fuel on top of your vehicle tank = a longer run.',
     tiers: [
-      { label: '40L', cost: 0, value: 100 },
-      { label: '55L', cost: 200, value: 140 },
-      { label: '75L', cost: 560, value: 190 },
-      { label: '100L', cost: 1250, value: 250 },
-      { label: 'Auxiliary', cost: 2800, value: 330 },
+      { label: 'Stock', cost: 0, value: 0 },
+      { label: '+40L', cost: 200, value: 40 },
+      { label: '+90L', cost: 560, value: 90 },
+      { label: '+150L', cost: 1250, value: 150 },
+      { label: '+230L', cost: 2800, value: 230 },
     ],
   },
   armor: {
@@ -94,14 +94,14 @@ export function defaultTiers(): OwnedTiers {
   return { engine: 0, wheels: 0, fuel: 0, armor: 0, weapon: 0, booster: 0 };
 }
 
-/** Resolve owned tier indices into concrete car stats. */
-export function resolveStats(tiers: OwnedTiers): CarStats {
+/** Resolve owned tier indices into upgrade-only stats (vehicle base applied later). */
+export function resolveStats(tiers: OwnedTiers): UpgradeStats {
   const v = (k: UpgradeKey) =>
     UPGRADES[k].tiers[Math.min(tiers[k], UPGRADES[k].tiers.length - 1)].value;
   return {
     engine: v('engine'),
     wheels: v('wheels'),
-    maxFuel: v('fuel'),
+    fuelBonus: v('fuel'),
     armor: v('armor'),
     weaponLevel: v('weapon'),
     boosterCharges: v('booster'),

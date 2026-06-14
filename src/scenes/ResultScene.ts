@@ -36,6 +36,7 @@ export class ResultScene extends Phaser.Scene {
     const lines = [
       `Distance:  ${r.distanceM} m  /  ${stage.distanceM} m`,
       `Zombies splattered:  ${r.kills}`,
+      `Best combo:  x${r.maxCombo}      Stunts:  ${r.stunts}`,
       `Cash earned:  $${r.cashCollected}`,
       `Bank total:  $${Save.get().cash}`,
     ];

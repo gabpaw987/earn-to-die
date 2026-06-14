@@ -14,12 +14,19 @@ export class PreloadScene extends Phaser.Scene {
     this.makeChassis();
     this.makeWheel();
     this.makeZombie();
+    this.makeZombieBrute();
+    this.makeZombieCrawler();
     this.makeFuelCan();
     this.makeCashBag();
     this.makeDirt();
     this.makeParticle();
     this.makeEvac();
     this.makeBullet();
+    this.makeWreck();
+    this.makeRock();
+    this.makeRamp();
+    this.makeGun();
+    this.makeArmorPlate();
     this.scene.start(SCENES.Menu);
   }
 
@@ -151,6 +158,135 @@ export class PreloadScene extends Phaser.Scene {
     this.bake(TEX.bullet, 10, 4, (g) => {
       g.fillStyle(0xfff176, 1);
       g.fillRect(0, 0, 10, 4);
+    });
+  }
+
+  private makeZombieBrute() {
+    const w = 46;
+    const h = 70;
+    this.bake(TEX.zombieBrute, w, h, (g) => {
+      // hulking body
+      g.fillStyle(0x3f5a2f, 1);
+      g.fillRoundedRect(8, 22, 30, 44, 6);
+      // head
+      g.fillStyle(0x5e7c42, 1);
+      g.fillCircle(23, 14, 13);
+      // glowing eyes
+      g.fillStyle(0xff3b30, 1);
+      g.fillCircle(18, 13, 3);
+      g.fillCircle(28, 13, 3);
+      // big arms reaching out
+      g.fillStyle(0x3f5a2f, 1);
+      g.fillRect(34, 28, 14, 8);
+      g.fillRect(0, 30, 12, 8);
+    });
+  }
+
+  private makeZombieCrawler() {
+    const w = 44;
+    const h = 22;
+    this.bake(TEX.zombieCrawler, w, h, (g) => {
+      // low, sprawled body
+      g.fillStyle(0x4b6b3a, 1);
+      g.fillRoundedRect(6, 8, 26, 12, 5);
+      // head out front
+      g.fillStyle(0x6f9152, 1);
+      g.fillCircle(36, 12, 7);
+      g.fillStyle(0xc0392b, 1);
+      g.fillCircle(38, 11, 2);
+      // dragging arm
+      g.fillStyle(0x4b6b3a, 1);
+      g.fillRect(0, 12, 10, 4);
+    });
+  }
+
+  private makeWreck() {
+    const w = 84;
+    const h = 56;
+    this.bake(TEX.wreck, w, h, (g) => {
+      // rusted body
+      g.fillStyle(0x6e4a3a, 1);
+      g.fillRoundedRect(2, 22, w - 4, h - 26, 6);
+      // crumpled cabin
+      g.fillStyle(0x4a342a, 1);
+      g.fillRoundedRect(22, 6, 40, 22, 5);
+      // smashed windows
+      g.fillStyle(0x2a2a2a, 1);
+      g.fillRect(28, 10, 28, 12);
+      // rust streaks + flat tyres
+      g.fillStyle(0x8a5a2a, 0.6);
+      g.fillRect(8, 30, w - 16, 5);
+      g.fillStyle(0x1a1a1a, 1);
+      g.fillCircle(20, h - 6, 8);
+      g.fillCircle(w - 22, h - 6, 8);
+    });
+  }
+
+  private makeRock() {
+    const s = 56;
+    this.bake(TEX.rock, s, s - 8, (g) => {
+      g.fillStyle(0x6b6b6b, 1);
+      g.fillTriangle(4, s - 12, s / 2, 4, s - 4, s - 12);
+      g.fillStyle(0x565656, 1);
+      g.fillTriangle(s / 2, 4, s - 4, s - 12, s / 2 + 6, s - 12);
+      // highlight
+      g.fillStyle(0x8a8a8a, 0.7);
+      g.fillTriangle(s / 2, 8, s / 2 - 10, s - 16, s / 2 + 2, s - 16);
+    });
+  }
+
+  private makeRamp() {
+    // Right triangle matching the Matter verts "0 h, w h, w 0":
+    // low on the left, high on the right -> launches a rightward car upward.
+    const w = 110;
+    const h = 60;
+    this.bake(TEX.ramp, w, h, (g) => {
+      g.fillStyle(0x8a6a3a, 1);
+      g.fillTriangle(0, h, w, h, w, 0);
+      // plank lines
+      g.lineStyle(2, 0x5e4626, 1);
+      for (let i = 1; i < 5; i++) {
+        const x = (w / 5) * i;
+        g.beginPath();
+        g.moveTo(x, h);
+        g.lineTo(x, h - (h / w) * x);
+        g.strokePath();
+      }
+      // warning stripe along the lip
+      g.lineStyle(4, 0xf1c40f, 1);
+      g.beginPath();
+      g.moveTo(0, h);
+      g.lineTo(w, 0);
+      g.strokePath();
+    });
+  }
+
+  private makeGun() {
+    // roof-mounted gun barrel (drawn pointing right)
+    const w = 38;
+    const h = 16;
+    this.bake(TEX.gun, w, h, (g) => {
+      g.fillStyle(0x333333, 1);
+      g.fillRoundedRect(0, 5, 22, 8, 2); // body
+      g.fillStyle(0x555555, 1);
+      g.fillRect(20, 7, 18, 4); // barrel
+      g.fillStyle(0x222222, 1);
+      g.fillRect(6, 0, 8, 6); // sight
+    });
+  }
+
+  private makeArmorPlate() {
+    const w = 150;
+    const h = 30;
+    this.bake(TEX.armorPlate, w, h, (g) => {
+      g.fillStyle(0x4a4a52, 1);
+      g.fillRoundedRect(0, 4, w, h - 8, 4);
+      // bolts
+      g.fillStyle(0x707078, 1);
+      for (let i = 0; i < 7; i++) g.fillCircle(12 + i * 22, h / 2, 2.5);
+      // spikes along the front edge
+      g.fillStyle(0x9a9aa2, 1);
+      for (let i = 0; i < 5; i++) g.fillTriangle(w - 10, 6 + i * 4, w - 10, 10 + i * 4, w + 2, 8 + i * 4);
     });
   }
 }

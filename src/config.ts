@@ -52,6 +52,7 @@ export const SCENES = {
   Ui: 'Ui',
   Result: 'Result',
   Garage: 'Garage',
+  Pause: 'Pause',
 } as const;
 
 /** Texture keys generated procedurally in PreloadScene. */
@@ -59,12 +60,37 @@ export const TEX = {
   chassis: 'tex-chassis',
   wheel: 'tex-wheel',
   zombie: 'tex-zombie',
+  zombieBrute: 'tex-zombie-brute',
+  zombieCrawler: 'tex-zombie-crawler',
   fuelCan: 'tex-fuelcan',
   cashBag: 'tex-cashbag',
   dirt: 'tex-dirt',
   particle: 'tex-particle',
   evac: 'tex-evac',
   bullet: 'tex-bullet',
+  wreck: 'tex-wreck',
+  rock: 'tex-rock',
+  ramp: 'tex-ramp',
+  gun: 'tex-gun',
+  armorPlate: 'tex-armor',
+} as const;
+
+/** Kill-combo tuning: chained kills within the window multiply cash. */
+export const COMBO = {
+  windowMs: 2500,
+  /** cash multiplier = 1 + (combo-1) * step, capped. */
+  step: 0.25,
+  maxMult: 4,
+} as const;
+
+/** Stunt rewards (flips + big air while airborne). */
+export const STUNT = {
+  /** Degrees of rotation in the air to count as a flip. */
+  flipDegrees: 320,
+  flipCash: 60,
+  /** Milliseconds airborne to count as "big air". */
+  bigAirMs: 900,
+  bigAirCash: 30,
 } as const;
 
 /** Matter collision categories (bitmask). */

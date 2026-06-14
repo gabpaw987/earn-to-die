@@ -11,9 +11,10 @@ export interface CarControls {
 
 /**
  * The player's rig: a Matter compound built from a chassis sprite and two
- * wheel sprites pinned by stiff distance constraints (acting as axles +
- * light suspension). Driven by applying torque to the wheels on the ground,
- * and torque to the chassis for flip control in the air.
+ * wheel sprites pinned by stiff distance constraints (axles + light suspension).
+ * Driven by torque on the wheels on the ground, and torque to the chassis for
+ * flip control in the air. Vehicle choice tints/weights it; owned upgrades are
+ * reflected with an armor plate and a roof gun.
  */
 export class Car {
   readonly chassis: Phaser.Physics.Matter.Sprite;
@@ -25,6 +26,8 @@ export class Car {
   private boostCooldown = 0;
 
   private readonly stats: CarStats;
+  private armorSprite?: Phaser.GameObjects.Image;
+  private gunSprite?: Phaser.GameObjects.Image;
 
   constructor(
     private scene: Phaser.Scene,
@@ -40,21 +43,24 @@ export class Car {
 
     const M = this.scene.matter;
 
-    // Chassis
+    // Chassis — density scaled by the vehicle mass; tinted to the vehicle colour.
     this.chassis = M.add.sprite(x, y, TEX.chassis, undefined, {
       label: 'car-chassis',
       friction: 0.05,
       frictionAir: 0.01,
-      density: 0.0016,
+      density: 0.0016 * stats.mass,
       collisionFilter: { category: CAT.car, mask: CAT.terrain | CAT.zombie | CAT.pickup },
     });
     this.chassis.setDepth(10);
+    this.chassis.setTint(stats.chassisColor);
 
     // Wheel mount offsets relative to chassis center.
     const mounts = [
       { x: -48, y: 24 }, // rear
       { x: 50, y: 24 }, // front
     ];
+    // Bigger, grippier wheels read as a visible upgrade (sprite-only scale).
+    const wheelScale = Phaser.Math.Clamp(0.85 + (stats.wheels - 1) * 0.35, 0.85, 1.3);
 
     for (const m of mounts) {
       const wheel = M.add.sprite(x + m.x, y + m.y, TEX.wheel, undefined, {
@@ -67,9 +73,9 @@ export class Car {
         collisionFilter: { category: CAT.car, mask: CAT.terrain },
       });
       wheel.setDepth(9);
+      wheel.setScale(wheelScale);
       this.wheels.push(wheel);
 
-      // Stiff length-0 constraint = axle with a touch of spring.
       M.add.constraint(
         this.chassis.body as MatterJS.BodyType,
         wheel.body as MatterJS.BodyType,
@@ -77,6 +83,15 @@ export class Car {
         0.7,
         { pointA: { x: m.x, y: m.y }, damping: 0.1 },
       );
+    }
+
+    // Visual upgrade reflections (decorative; repositioned each frame).
+    if (stats.armor > 0) {
+      this.armorSprite = scene.add.image(x, y, TEX.armorPlate).setDepth(11);
+      this.armorSprite.setScale(0.7 + stats.armor * 0.4, 1);
+    }
+    if (stats.weaponLevel > 0) {
+      this.gunSprite = scene.add.image(x, y, TEX.gun).setDepth(12).setOrigin(0.3, 0.5);
     }
   }
 
@@ -96,12 +111,17 @@ export class Car {
     return (this.chassis.body as MatterJS.BodyType).velocity.x;
   }
 
+  /** Vertical velocity (px/step); positive = falling. */
+  get vy() {
+    return (this.chassis.body as MatterJS.BodyType).velocity.y;
+  }
+
   isOutOfFuel() {
     return this.fuel <= 0;
   }
 
   /** Is at least one wheel touching/near the ground? */
-  private grounded(): boolean {
+  grounded(): boolean {
     for (const w of this.wheels) {
       const surf = this.terrain.heightAt(w.x);
       if (w.y + 28 >= surf - 6) return true;
@@ -109,16 +129,19 @@ export class Car {
     return false;
   }
 
-  /** World position of the roof gun muzzle (front-top of chassis). */
-  muzzle(): { x: number; y: number; angle: number } {
+  /** Local-to-world transform of an offset from the chassis center. */
+  private place(ox: number, oy: number): { x: number; y: number } {
     const a = Phaser.Math.DegToRad(this.chassis.angle);
-    const ox = 64;
-    const oy = -22;
     return {
       x: this.chassis.x + Math.cos(a) * ox - Math.sin(a) * oy,
       y: this.chassis.y + Math.sin(a) * ox + Math.cos(a) * oy,
-      angle: a,
     };
+  }
+
+  /** World position of the roof gun muzzle (front-top of chassis). */
+  muzzle(): { x: number; y: number; angle: number } {
+    const p = this.place(78, -26);
+    return { x: p.x, y: p.y, angle: Phaser.Math.DegToRad(this.chassis.angle) };
   }
 
   tryBoost(): boolean {
@@ -127,7 +150,9 @@ export class Car {
     this.boostCooldown = 800;
     const a = Phaser.Math.DegToRad(this.chassis.angle);
     const force = 0.9;
-    this.chassis.applyForce(new Phaser.Math.Vector2(Math.cos(a) * force * 0.06, Math.sin(a) * force * 0.06 - 0.03));
+    this.chassis.applyForce(
+      new Phaser.Math.Vector2(Math.cos(a) * force * 0.06, Math.sin(a) * force * 0.06 - 0.03),
+    );
     return true;
   }
 
@@ -157,14 +182,12 @@ export class Car {
 
     if (this.fuel > 0) {
       if (onGround) {
-        // Spin the wheels.
         if (controls.throttle && this.speed < maxSpeed) {
           for (const w of this.wheels) (w.body as MatterJS.BodyType).torque = driveTorque;
         } else if (controls.brake && this.speed > -maxSpeed * 0.5) {
           for (const w of this.wheels) (w.body as MatterJS.BodyType).torque = -driveTorque;
         }
       } else {
-        // Air control: tilt the chassis.
         const chassis = this.chassis.body as MatterJS.BodyType;
         if (controls.throttle) chassis.torque = PHYSICS.airTorque * 1000;
         else if (controls.brake) chassis.torque = -PHYSICS.airTorque * 1000;
@@ -173,10 +196,20 @@ export class Car {
 
     if (controls.boost) this.tryBoost();
 
-    // Spin wheel sprites are auto-updated by Matter; nothing else needed.
+    // Keep decorative upgrade sprites glued to the chassis.
+    if (this.armorSprite) {
+      const p = this.place(18, 10);
+      this.armorSprite.setPosition(p.x, p.y).setRotation(Phaser.Math.DegToRad(this.chassis.angle));
+    }
+    if (this.gunSprite) {
+      const p = this.place(8, -30);
+      this.gunSprite.setPosition(p.x, p.y).setRotation(Phaser.Math.DegToRad(this.chassis.angle));
+    }
   }
 
   destroy() {
+    this.armorSprite?.destroy();
+    this.gunSprite?.destroy();
     this.wheels.forEach((w) => w.destroy());
     this.chassis.destroy();
   }

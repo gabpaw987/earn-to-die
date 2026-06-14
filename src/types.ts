@@ -36,9 +36,30 @@ export interface SaveData {
   /** Best distance (metres) achieved per stage index. */
   bestDistance: Record<number, number>;
   lifetimeKills: number;
+  /** Vehicle keys the player owns. */
+  ownedVehicles: string[];
+  /** Currently selected vehicle key. */
+  selectedVehicle: string;
+  /** Audio muted? */
+  muted: boolean;
+  /** Best kill-combo ever reached. */
+  bestCombo: number;
+  /** Lifetime stunts landed. */
+  lifetimeStunts: number;
 }
 
-/** Effective, resolved car stats after applying owned upgrade tiers. */
+/** Resolved values from upgrade tiers only (before vehicle base is applied). */
+export interface UpgradeStats {
+  engine: number;
+  wheels: number;
+  /** Bonus fuel litres added on top of the vehicle's base tank. */
+  fuelBonus: number;
+  armor: number;
+  weaponLevel: number; // 0 = none
+  boosterCharges: number;
+}
+
+/** Effective, resolved car stats after combining vehicle base + upgrade tiers. */
 export interface CarStats {
   engine: number;
   wheels: number;
@@ -46,19 +67,12 @@ export interface CarStats {
   armor: number;
   weaponLevel: number; // 0 = none
   boosterCharges: number;
-}
-
-/** Definition of a single stage/level. */
-export interface StageDef {
-  name: string;
-  /** Target distance in metres to reach evac. */
-  distanceM: number;
-  /** Terrain bumpiness amplitude multiplier. */
-  roughness: number;
-  /** Zombies per 100m (approx). */
-  zombieDensity: number;
-  /** Cash multiplier for this stage. */
-  cashMult: number;
+  /** Chassis density scalar (from the vehicle). */
+  mass: number;
+  /** Chassis tint 0xRRGGBB (from the vehicle). */
+  chassisColor: number;
+  /** Selected vehicle key. */
+  vehicleKey: string;
 }
 
 /** Summary of a finished run, handed to ResultScene. */
@@ -68,4 +82,8 @@ export interface RunResult {
   kills: number;
   cashCollected: number;
   reachedEvac: boolean;
+  /** Highest combo reached this run. */
+  maxCombo: number;
+  /** Stunts (flips / big air) landed this run. */
+  stunts: number;
 }

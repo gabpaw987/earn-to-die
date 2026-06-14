@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import { GAME, SCENES } from '../config';
+import { Save } from '../state/SaveManager';
+import { Sfx } from '../audio/Sfx';
 
 interface HudState {
   fuelPct: number;
@@ -9,6 +11,8 @@ interface HudState {
   speed: number;
   boost: number;
   stageName: string;
+  combo: number;
+  comboMult: number;
 }
 
 /** Transparent overlay scene drawing the run HUD from 'hud' events. */
@@ -18,6 +22,8 @@ export class UiScene extends Phaser.Scene {
   private label!: Phaser.GameObjects.Text;
   private cashText!: Phaser.GameObjects.Text;
   private boostText!: Phaser.GameObjects.Text;
+  private comboText!: Phaser.GameObjects.Text;
+  private muteBtn!: Phaser.GameObjects.Text;
   private handler = (s: HudState) => this.render(s);
 
   constructor() {
@@ -39,16 +45,34 @@ export class UiScene extends Phaser.Scene {
       fontSize: '18px',
       color: '#5dade2',
     });
+    this.comboText = this.add
+      .text(GAME.width / 2, 64, '', { fontFamily: 'Impact', fontSize: '40px', color: '#ffd23b' })
+      .setOrigin(0.5);
+
     this.label = this.add
-      .text(GAME.width / 2, 24, '', {
-        fontFamily: 'Trebuchet MS',
-        fontSize: '20px',
-        color: '#ffffff',
-      })
+      .text(GAME.width / 2, 24, '', { fontFamily: 'Trebuchet MS', fontSize: '20px', color: '#ffffff' })
       .setOrigin(0.5, 0);
 
+    // Mute toggle (top-right).
+    this.muteBtn = this.add
+      .text(GAME.width - 24, 20, '', {
+        fontFamily: 'Trebuchet MS',
+        fontSize: '22px',
+        color: '#ecf0f1',
+        backgroundColor: '#2c3e50',
+        padding: { x: 10, y: 6 },
+      })
+      .setOrigin(1, 0)
+      .setInteractive({ useHandCursor: true });
+    this.muteBtn.on('pointerdown', () => {
+      const m = Sfx.toggleMute();
+      Save.setMuted(m);
+      this.refreshMute();
+    });
+    this.refreshMute();
+
     this.add
-      .text(GAME.width - 24, GAME.height - 30, '→/D drive   ←/A brake/tilt   SPACE fire   SHIFT nitro   ESC end', {
+      .text(GAME.width - 24, GAME.height - 30, '→/D drive   ←/A brake/tilt   SPACE fire   SHIFT nitro   ESC pause', {
         fontFamily: 'Trebuchet MS',
         fontSize: '15px',
         color: '#bdc3c7',
@@ -56,19 +80,19 @@ export class UiScene extends Phaser.Scene {
       .setOrigin(1, 1);
 
     this.game.events.on('hud', this.handler);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.game.events.off('hud', this.handler);
-    });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.game.events.off('hud', this.handler));
+  }
+
+  private refreshMute() {
+    this.muteBtn.setText(Sfx.muted ? '🔇 OFF' : '🔊 ON');
   }
 
   private render(s: HudState) {
-    // Fuel bar
     this.fuelBar.clear();
     this.fuelBar.fillStyle(0x000000, 0.5).fillRect(70, 18, 220, 22);
     const fc = s.fuelPct > 0.3 ? 0x2ecc71 : 0xe74c3c;
     this.fuelBar.fillStyle(fc, 1).fillRect(72, 20, 216 * Phaser.Math.Clamp(s.fuelPct, 0, 1), 18);
 
-    // Progress bar (distance to evac)
     const pw = GAME.width - 320;
     const px = 160;
     const py = GAME.height - 60;
@@ -83,5 +107,13 @@ export class UiScene extends Phaser.Scene {
     this.label.setText(
       `${s.stageName}   ${Math.floor(s.distanceM)}m / ${s.targetM}m   ·   ${Math.round(s.speed * 6)} km/h`,
     );
+
+    if (s.combo >= 2) {
+      this.comboText.setText(`COMBO x${s.combo}  (${s.comboMult.toFixed(1)}×)`);
+      const hot = s.combo >= 8 ? '#ff3b30' : s.combo >= 4 ? '#ff8c00' : '#ffd23b';
+      this.comboText.setColor(hot);
+    } else {
+      this.comboText.setText('');
+    }
   }
 }

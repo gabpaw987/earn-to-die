@@ -127,7 +127,7 @@ export class Parallax {
     const size = (radius + pad) * 2;
     const mid = size / 2;
 
-    const g = this.scene.make.graphics({ x: 0, y: 0, add: false });
+    const g = this.scene.make.graphics({ x: 0, y: 0 }, false);
 
     if (type === 'sun') {
       // Warm layered corona.
@@ -269,7 +269,7 @@ export class Parallax {
       return h;
     };
 
-    const g = this.scene.make.graphics({ x: 0, y: 0, add: false });
+    const g = this.scene.make.graphics({ x: 0, y: 0 }, false);
     const steps = texW;
 
     // Vertical gradient fill via thin horizontal slices clipped to the curve.

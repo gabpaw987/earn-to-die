@@ -7,6 +7,8 @@ import { GameScene } from './scenes/GameScene';
 import { UiScene } from './scenes/UiScene';
 import { ResultScene } from './scenes/ResultScene';
 import { GarageScene } from './scenes/GarageScene';
+import { PauseScene } from './scenes/PauseScene';
+import { Sfx } from './audio/Sfx';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -33,10 +35,17 @@ const config: Phaser.Types.Core.GameConfig = {
     UiScene,
     ResultScene,
     GarageScene,
+    PauseScene,
   ],
 };
 
 const game = new Phaser.Game(config);
+
+// Web Audio needs a user gesture before it can make sound — resume on the
+// first interaction anywhere in the page.
+const resumeAudio = () => Sfx.resume();
+window.addEventListener('pointerdown', resumeAudio);
+window.addEventListener('keydown', resumeAudio);
 
 // Expose for debugging / automated testing in dev.
 (window as unknown as { game: Phaser.Game }).game = game;

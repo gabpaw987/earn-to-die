@@ -17,6 +17,8 @@ export class Terrain {
     distanceM: number,
     roughness: number,
     private worldHeight: number,
+    private groundFill: number = 0x5a4631,
+    private groundTop: number = 0x6b8e23,
   ) {
     // World length: stage distance + a runway before/after.
     this.totalWidth = distanceM * RUN.pxPerMetre + 1600;
@@ -65,7 +67,7 @@ export class Terrain {
   private draw() {
     const g = this.scene.add.graphics();
     g.setDepth(-5);
-    g.fillStyle(0x5a4631, 1);
+    g.fillStyle(this.groundFill, 1);
     g.beginPath();
     g.moveTo(0, this.worldHeight);
     for (let i = 0; i < this.heights.length; i++) {
@@ -75,7 +77,7 @@ export class Terrain {
     g.closePath();
     g.fillPath();
     // grass/scorched top line
-    g.lineStyle(5, 0x6b8e23, 1);
+    g.lineStyle(5, this.groundTop, 1);
     g.beginPath();
     g.moveTo(0, this.heights[0]);
     for (let i = 1; i < this.heights.length; i++) {
