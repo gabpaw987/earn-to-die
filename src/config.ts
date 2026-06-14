@@ -21,9 +21,9 @@ export const PHYSICS = {
 
 export const FUEL = {
   baseMax: 100,
-  idleDrainPerSec: 1.2,
-  throttleDrainPerSec: 7.5,
-  fuelCanRestore: 28,
+  idleDrainPerSec: 1.4,
+  throttleDrainPerSec: 8.5,
+  fuelCanRestore: 30,
 } as const;
 
 export const RUN = {
@@ -36,8 +36,8 @@ export const RUN = {
 
 export const REWARD = {
   cashPerZombie: 6,
-  cashPerMetre: 0.7,
-  cashBagValue: 40,
+  cashPerMetre: 0.3,
+  cashBagValue: 28,
 } as const;
 
 /** localStorage key + schema version. Bump version to migrate/reset saves. */
@@ -93,10 +93,10 @@ export const COMBO = {
 export const STUNT = {
   /** Degrees of rotation in the air to count as a flip. */
   flipDegrees: 320,
-  flipCash: 60,
+  flipCash: 45,
   /** Milliseconds airborne to count as "big air". */
   bigAirMs: 900,
-  bigAirCash: 30,
+  bigAirCash: 22,
 } as const;
 
 /** Matter collision categories (bitmask). */

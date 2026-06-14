@@ -17,10 +17,10 @@ export const UPGRADES: Record<UpgradeKey, UpgradeDef> = {
     blurb: 'Top speed & torque. The single biggest factor in distance.',
     tiers: [
       { label: 'Stock I4', cost: 0, value: 1.0 },
-      { label: 'Tuned I4', cost: 220, value: 1.25 },
-      { label: 'V6', cost: 600, value: 1.55 },
-      { label: 'V8', cost: 1400, value: 1.9 },
-      { label: 'Supercharged', cost: 3200, value: 2.35 },
+      { label: 'Tuned I4', cost: 250, value: 1.22 },
+      { label: 'V6', cost: 650, value: 1.48 },
+      { label: 'V8', cost: 1500, value: 1.78 },
+      { label: 'Supercharged', cost: 3400, value: 2.15 },
     ],
   },
   wheels: {
@@ -29,9 +29,9 @@ export const UPGRADES: Record<UpgradeKey, UpgradeDef> = {
     blurb: 'Grip, hill-climb, and softer landings so you flip less.',
     tiers: [
       { label: 'Bald street', cost: 0, value: 1.0 },
-      { label: 'All-season', cost: 180, value: 1.18 },
-      { label: 'Off-road', cost: 520, value: 1.4 },
-      { label: 'Monster', cost: 1300, value: 1.7 },
+      { label: 'All-season', cost: 200, value: 1.18 },
+      { label: 'Off-road', cost: 560, value: 1.4 },
+      { label: 'Monster', cost: 1400, value: 1.7 },
     ],
   },
   fuel: {
@@ -40,10 +40,10 @@ export const UPGRADES: Record<UpgradeKey, UpgradeDef> = {
     blurb: 'Bonus fuel on top of your vehicle tank = a longer run.',
     tiers: [
       { label: 'Stock', cost: 0, value: 0 },
-      { label: '+40L', cost: 200, value: 40 },
-      { label: '+90L', cost: 560, value: 90 },
-      { label: '+150L', cost: 1250, value: 150 },
-      { label: '+230L', cost: 2800, value: 230 },
+      { label: '+50L', cost: 240, value: 50 },
+      { label: '+110L', cost: 650, value: 110 },
+      { label: '+180L', cost: 1400, value: 180 },
+      { label: '+270L', cost: 3000, value: 270 },
     ],
   },
   armor: {

@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { CAT, COMBO, FUEL, GAME, REWARD, RUN, SCENES, STUNT, TEX } from '../config';
 import { STAGES, type Stage } from '../data/levels';
 import { Save } from '../state/SaveManager';
-import { Terrain } from '../objects/Terrain';
+import { Terrain, type TerrainOpts } from '../objects/Terrain';
+import { LEVEL_PLANS, SEGMENT_BEHAVIOR, type Segment, type LevelPlan } from '../data/levelPlans';
 import { Car, type CarControls } from '../objects/Car';
 import { Zombie, type ZombieType } from '../objects/Zombie';
 import { Obstacle, type ObstacleKind } from '../objects/Obstacle';
@@ -37,6 +38,9 @@ export class GameScene extends Phaser.Scene {
   private zombies: Zombie[] = [];
   private obstacles: Obstacle[] = [];
   private pickups: Pickup[] = [];
+
+  private segLayout: Array<{ seg: Segment; x0: number; x1: number }> = [];
+  private effectiveDistanceM = 0;
 
   private startX = 0;
   private evacX = 0;
@@ -98,6 +102,7 @@ export class GameScene extends Phaser.Scene {
     this.stunts = 0;
     this.exhaustAcc = 0;
     this.dustAcc = 0;
+    this.segLayout = [];
   }
 
   create() {
@@ -107,25 +112,39 @@ export class GameScene extends Phaser.Scene {
     this.parallax = new Parallax(this, theme, GAME.width, GAME.height);
     this.fx = new Fx(this);
 
+    this.startX = 300;
+    const plan = LEVEL_PLANS[this.stageIndex];
+    let opts: TerrainOpts = {};
+    let distanceM = this.stage.distanceM;
+    if (plan) {
+      const layout = this.computeLayout(plan);
+      this.segLayout = layout.segs;
+      distanceM = layout.distanceM;
+      opts = layout.opts;
+    }
+    this.effectiveDistanceM = distanceM;
+    this.evacX = this.startX + distanceM * RUN.pxPerMetre;
+    this.maxProgressX = this.startX;
+
     this.terrain = new Terrain(
       this,
-      this.stage.distanceM,
+      distanceM,
       this.stage.roughness,
       WORLD_H,
       theme.groundFill,
       theme.groundTop,
+      opts,
     );
-
-    this.startX = 300;
-    this.evacX = this.startX + this.stage.distanceM * RUN.pxPerMetre;
-    this.maxProgressX = this.startX;
 
     const spawnY = this.terrain.heightAt(this.startX) - 80;
     this.car = new Car(this, this.startX, spawnY, Save.stats(), this.terrain);
     this.lastAngle = this.car.angleDeg;
 
-    this.spawnHorde();
-    this.spawnObstacles();
+    if (plan) this.buildFromPlan();
+    else {
+      this.spawnHorde();
+      this.spawnObstacles();
+    }
     this.placeEvac();
 
     this.matter.world.setBounds(0, -1200, this.terrain.totalWidth, WORLD_H + 1400);
@@ -213,6 +232,101 @@ export class GameScene extends Phaser.Scene {
     for (let m = 60; m < distanceM; m += 70) {
       const x = this.startX + (m + 12) * RUN.pxPerMetre;
       this.pickups.push(new Pickup(this, x, this.terrain.heightAt(x), 'cash'));
+    }
+  }
+
+  /** Weighted random pick over a {key: weight} map. */
+  private weighted<T extends string>(mix: Record<T, number>): T {
+    const keys = Object.keys(mix) as T[];
+    let total = 0;
+    for (const k of keys) total += mix[k];
+    let r = Math.random() * total;
+    for (const k of keys) {
+      r -= mix[k];
+      if (r <= 0) return k;
+    }
+    return keys[0];
+  }
+
+  private placeRamp(x: number) {
+    if (this.terrain.isGap(x)) return;
+    this.obstacles.push(new Obstacle(this, x, this.terrain.heightAt(x), 'ramp'));
+  }
+
+  /** Turn an authored plan into world-x segments + terrain roughness/slope/gaps. */
+  private computeLayout(plan: LevelPlan) {
+    const px = RUN.pxPerMetre;
+    const segs: Array<{ seg: Segment; x0: number; x1: number }> = [];
+    const gaps: Array<[number, number]> = [];
+    let m = 0;
+    for (const seg of plan.segments) {
+      const x0 = this.startX + m * px;
+      const x1 = this.startX + (m + seg.lengthM) * px;
+      segs.push({ seg, x0, x1 });
+      if (SEGMENT_BEHAVIOR[seg.type].isGap) {
+        const holeW = 120 + seg.intensity * 180;
+        const holeStart = x0 + 200;
+        const holeEnd = Math.min(holeStart + holeW, x1 - 70);
+        if (holeEnd > holeStart + 40) gaps.push([holeStart, holeEnd]);
+      }
+      m += seg.lengthM;
+    }
+    const findSeg = (x: number) => {
+      for (const s of segs) if (x >= s.x0 && x < s.x1) return s;
+      return segs[segs.length - 1];
+    };
+    const opts: TerrainOpts = {
+      roughAt: (x) => {
+        const s = findSeg(x);
+        const b = SEGMENT_BEHAVIOR[s.seg.type];
+        return this.stage.roughness * b.roughMult * (0.6 + 0.7 * s.seg.intensity);
+      },
+      slopeAt: (x) => SEGMENT_BEHAVIOR[findSeg(x).seg.type].slope * 0.14,
+      gaps,
+    };
+    return { segs, distanceM: m, opts };
+  }
+
+  /** Place zombies / obstacles / pickups / ramps per authored segment. */
+  private buildFromPlan() {
+    for (const { seg, x0, x1 } of this.segLayout) {
+      const b = SEGMENT_BEHAVIOR[seg.type];
+      const lenM = seg.lengthM;
+      if (b.isGap) {
+        this.placeRamp(x0 + 60);
+        // Reward bags on the landing side for clearing the gap.
+        for (let k = 0; k < 3; k++) {
+          const x = x1 - 130 + k * 46;
+          if (!this.terrain.isGap(x)) this.pickups.push(new Pickup(this, x, this.terrain.heightAt(x), 'cash'));
+        }
+        continue;
+      }
+      if (b.leadRamp) this.placeRamp(x0 + 50);
+
+      const zCount = Math.round((lenM / 100) * b.zPer100 * (0.5 + seg.intensity * 0.8));
+      for (let k = 0; k < zCount; k++) {
+        const x = Phaser.Math.Between(x0 + 40, x1 - 40);
+        if (this.terrain.isGap(x)) continue;
+        this.zombies.push(new Zombie(this, x, this.terrain.heightAt(x), this.weighted(b.zMix)));
+      }
+      const oCount = Math.round((lenM / 100) * b.obstPer100 * (0.5 + seg.intensity * 0.6));
+      for (let k = 0; k < oCount; k++) {
+        const x = Phaser.Math.Between(x0 + 40, x1 - 40);
+        if (this.terrain.isGap(x)) continue;
+        this.obstacles.push(new Obstacle(this, x, this.terrain.heightAt(x), this.weighted(b.obstMix)));
+      }
+      const fuelCount = Math.round((lenM / 100) * b.fuelPer100);
+      for (let k = 0; k < fuelCount; k++) {
+        const x = x0 + ((k + 0.5) / Math.max(1, fuelCount)) * (x1 - x0);
+        if (this.terrain.isGap(x)) continue;
+        this.pickups.push(new Pickup(this, x, this.terrain.heightAt(x), 'fuel'));
+      }
+      const cashCount = Math.round((lenM / 100) * b.cashPer100);
+      for (let k = 0; k < cashCount; k++) {
+        const x = x0 + ((k + 0.5) / Math.max(1, cashCount)) * (x1 - x0);
+        if (this.terrain.isGap(x)) continue;
+        this.pickups.push(new Pickup(this, x, this.terrain.heightAt(x), 'cash'));
+      }
     }
   }
 
@@ -415,7 +529,7 @@ export class GameScene extends Phaser.Scene {
     this.car.update(delta, controls);
 
     // Engine audio
-    const maxSpeedApprox = 9 + Save.stats().engine * 4.5;
+    const maxSpeedApprox = 7 + Save.stats().engine * 3.6;
     Sfx.setEngine(controls.throttle, Phaser.Math.Clamp(Math.abs(this.car.speed) / maxSpeedApprox, 0, 1));
 
     // Weapon
@@ -476,7 +590,7 @@ export class GameScene extends Phaser.Scene {
     const hud: HudState = {
       fuelPct: this.car.fuel / this.car.maxFuel,
       distanceM,
-      targetM: this.stage.distanceM,
+      targetM: this.effectiveDistanceM,
       cash: Math.round(liveCash),
       speed: Math.abs(this.car.speed),
       boost: this.car.boostCharges,
@@ -494,7 +608,9 @@ export class GameScene extends Phaser.Scene {
 
     const distanceM = Math.max(0, (this.car.x - this.startX) / RUN.pxPerMetre);
     const distanceCash = Math.round(distanceM * REWARD.cashPerMetre * this.stage.cashMult);
-    const cashCollected = this.bagCash + distanceCash;
+    const gross = this.bagCash + distanceCash;
+    // Evac banks 100%; dying only banks 60% — surviving is meaningfully richer.
+    const cashCollected = reachedEvac ? gross : Math.round(gross * 0.6);
 
     Save.addCash(cashCollected);
     Save.recordRun(this.stageIndex, distanceM, this.kills, this.maxCombo, this.stunts);

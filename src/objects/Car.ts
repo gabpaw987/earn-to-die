@@ -211,7 +211,7 @@ export class Car {
 
     const onGround = this.grounded();
     const driveTorque = PHYSICS.wheelBaseTorque * this.stats.engine * this.stats.wheels;
-    const maxSpeed = 9 + this.stats.engine * 4.5;
+    const maxSpeed = 7 + this.stats.engine * 3.6;
 
     if (this.fuel > 0) {
       if (onGround) {
