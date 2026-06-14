@@ -1,0 +1,21 @@
+{
+  "name": "earn-to-die",
+  "version": "0.1.0",
+  "description": "An Earn to Die-inspired 2D physics side-scroller: drive through zombie hordes, earn cash, upgrade your rig, reach the evac.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["game", "phaser", "earn-to-die", "zombies", "physics"],
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^6.0.5"
+  },
+  "dependencies": {
+    "phaser": "^3.87.0"
+  }
+}
