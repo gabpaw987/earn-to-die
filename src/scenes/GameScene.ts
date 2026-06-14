@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { CAT, COMBO, GAME, REWARD, RUN, SCENES, STUNT, TEX } from '../config';
+import { CAT, COMBO, FUEL, GAME, REWARD, RUN, SCENES, STUNT, TEX } from '../config';
 import { STAGES, type Stage } from '../data/levels';
 import { Save } from '../state/SaveManager';
 import { Terrain } from '../objects/Terrain';
@@ -218,9 +218,11 @@ export class GameScene extends Phaser.Scene {
 
   private placeEvac() {
     const y = this.terrain.heightAt(this.evacX);
-    this.add.image(this.evacX, y - 60, TEX.evac).setDepth(5);
+    const src = this.textures.get(TEX.evac).getSourceImage() as { width: number; height: number };
+    const evac = this.add.image(this.evacX, y - 110, TEX.evac).setDepth(5);
+    if (src.width > 120) evac.setDisplaySize(260, 260 * (src.height / src.width));
     this.add
-      .text(this.evacX, y - 130, 'EVAC', { fontFamily: 'Impact', fontSize: '30px', color: '#2ecc71' })
+      .text(this.evacX, y - 190, 'EVAC', { fontFamily: 'Impact', fontSize: '34px', color: '#2ecc71' })
       .setOrigin(0.5);
   }
 
@@ -315,7 +317,7 @@ export class GameScene extends Phaser.Scene {
       if (p && !p.taken) {
         p.collect();
         if (p.kind === 'fuel') {
-          this.car.fuel = Math.min(this.car.maxFuel, this.car.fuel + 28);
+          this.car.fuel = Math.min(this.car.maxFuel, this.car.fuel + FUEL.fuelCanRestore);
           this.fx.popup(this.car.x, this.car.y - 70, '+FUEL', '#2ecc71');
           Sfx.fuel();
         } else {

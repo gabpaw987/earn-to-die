@@ -1,13 +1,37 @@
 import Phaser from 'phaser';
-import { SCENES, TEX } from '../config';
+import { GAME, SCENES, TEX } from '../config';
+import { SPRITE_FILES } from '../data/sprites';
 
 /**
- * Generates every texture procedurally so the repo ships zero binary assets.
- * Each helper draws into a Graphics object then bakes it to a texture key.
+ * Loads generated sprite art (gpt-image-2) where available, and procedurally
+ * generates any texture that is missing as a fallback. Each procedural helper
+ * draws into a Graphics object then bakes it to a texture key, but only if a
+ * real loaded texture didn't already claim that key.
  */
 export class PreloadScene extends Phaser.Scene {
   constructor() {
     super(SCENES.Preload);
+  }
+
+  preload() {
+    // Loading text.
+    this.add
+      .text(GAME.width / 2, GAME.height / 2, 'LOADING…', {
+        fontFamily: 'Impact, sans-serif',
+        fontSize: '40px',
+        color: '#e74c3c',
+      })
+      .setOrigin(0.5);
+
+    // Missing files are non-fatal — create() fills the gap procedurally.
+    this.load.on('loaderror', (file: Phaser.Loader.File) => {
+      console.warn('sprite missing, using procedural fallback:', file.key);
+    });
+
+    const base = (import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? './';
+    for (const s of SPRITE_FILES) {
+      this.load.image(s.key, `${base}sprites/${s.file}.png`);
+    }
   }
 
   create() {
@@ -31,6 +55,8 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   private bake(key: string, w: number, h: number, draw: (g: Phaser.GameObjects.Graphics) => void) {
+    // A real loaded sprite already claimed this key — keep the art.
+    if (this.textures.exists(key)) return;
     const g = this.add.graphics();
     draw(g);
     g.generateTexture(key, w, h);

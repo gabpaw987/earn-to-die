@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CAT, FUEL, PHYSICS, TEX } from '../config';
+import { VEHICLE_TEX } from '../data/sprites';
 import type { CarStats } from '../types';
 import type { Terrain } from './Terrain';
 
@@ -9,12 +10,19 @@ export interface CarControls {
   boost: boolean; // shift
 }
 
+const BODY_W = 196; // on-screen body width
+const WHEEL_DISP = 72; // on-screen wheel diameter
+const CHASSIS_BODY_W = 150;
+const CHASSIS_BODY_H = 56;
+const WHEEL_R = 28;
+
 /**
- * The player's rig: a Matter compound built from a chassis sprite and two
- * wheel sprites pinned by stiff distance constraints (axles + light suspension).
- * Driven by torque on the wheels on the ground, and torque to the chassis for
- * flip control in the air. Vehicle choice tints/weights it; owned upgrades are
- * reflected with an armor plate and a roof gun.
+ * The player's rig. Physics is a Matter compound (an invisible chassis box +
+ * two invisible wheel circles joined by stiff axle constraints). The visible
+ * art is decoupled: a body image + two wheel images (which spin) + optional
+ * armor plate and roof gun, all glued to the physics bodies each frame. This
+ * keeps the hitboxes fixed regardless of sprite resolution and lets the wheels
+ * actually rotate.
  */
 export class Car {
   readonly chassis: Phaser.Physics.Matter.Sprite;
@@ -26,6 +34,13 @@ export class Car {
   private boostCooldown = 0;
 
   private readonly stats: CarStats;
+  private readonly mounts = [
+    { x: -64, y: 26 }, // rear
+    { x: 66, y: 26 }, // front
+  ];
+
+  private bodyImg: Phaser.GameObjects.Image;
+  private wheelImgs: Phaser.GameObjects.Image[] = [];
   private armorSprite?: Phaser.GameObjects.Image;
   private gunSprite?: Phaser.GameObjects.Image;
 
@@ -43,39 +58,31 @@ export class Car {
 
     const M = this.scene.matter;
 
-    // Chassis — density scaled by the vehicle mass; tinted to the vehicle colour.
+    // Invisible physics chassis (fixed box, never scaled).
     this.chassis = M.add.sprite(x, y, TEX.chassis, undefined, {
       label: 'car-chassis',
+      shape: { type: 'rectangle', width: CHASSIS_BODY_W, height: CHASSIS_BODY_H },
       friction: 0.05,
       frictionAir: 0.01,
       density: 0.0016 * stats.mass,
       collisionFilter: { category: CAT.car, mask: CAT.terrain | CAT.zombie | CAT.pickup },
     });
+    this.chassis.setVisible(false);
     this.chassis.setDepth(10);
-    this.chassis.setTint(stats.chassisColor);
 
-    // Wheel mount offsets relative to chassis center.
-    const mounts = [
-      { x: -48, y: 24 }, // rear
-      { x: 50, y: 24 }, // front
-    ];
-    // Bigger, grippier wheels read as a visible upgrade (sprite-only scale).
-    const wheelScale = Phaser.Math.Clamp(0.85 + (stats.wheels - 1) * 0.35, 0.85, 1.3);
-
-    for (const m of mounts) {
-      const wheel = M.add.sprite(x + m.x, y + m.y, TEX.wheel, undefined, {
+    // Invisible physics wheels (fixed circles, never scaled).
+    for (const m of this.mounts) {
+      const wheel = M.add.sprite(x + m.x, y + m.y, TEX.chassis, undefined, {
         label: 'car-wheel',
-        shape: { type: 'circle', radius: 28 },
+        shape: { type: 'circle', radius: WHEEL_R },
         friction: 0.95,
         frictionStatic: 1.2,
         frictionAir: 0.005,
         density: 0.0012,
         collisionFilter: { category: CAT.car, mask: CAT.terrain },
       });
-      wheel.setDepth(9);
-      wheel.setScale(wheelScale);
+      wheel.setVisible(false);
       this.wheels.push(wheel);
-
       M.add.constraint(
         this.chassis.body as MatterJS.BodyType,
         wheel.body as MatterJS.BodyType,
@@ -85,14 +92,36 @@ export class Car {
       );
     }
 
-    // Visual upgrade reflections (decorative; repositioned each frame).
+    // --- Visible art (decoupled overlays) ---
+    const bodyKey = VEHICLE_TEX[stats.vehicleKey] ?? TEX.chassis;
+    const useArt = scene.textures.exists(bodyKey) && bodyKey !== TEX.chassis;
+    this.bodyImg = scene.add.image(x, y, useArt ? bodyKey : TEX.chassis).setDepth(10);
+    if (useArt) {
+      const f = scene.textures.get(bodyKey).getSourceImage();
+      const aspect = f.height / f.width;
+      this.bodyImg.setDisplaySize(BODY_W, BODY_W * aspect);
+    } else {
+      this.bodyImg.setDisplaySize(170, 72).setTint(stats.chassisColor);
+    }
+
+    for (let i = 0; i < this.mounts.length; i++) {
+      const wImg = scene.add.image(x, y, TEX.wheel).setDepth(9);
+      wImg.setDisplaySize(WHEEL_DISP, WHEEL_DISP);
+      this.wheelImgs.push(wImg);
+    }
+
     if (stats.armor > 0) {
       this.armorSprite = scene.add.image(x, y, TEX.armorPlate).setDepth(11);
-      this.armorSprite.setScale(0.7 + stats.armor * 0.4, 1);
+      const f = scene.textures.get(TEX.armorPlate).getSourceImage();
+      this.armorSprite.setDisplaySize(96, 96 * (f.height / f.width));
     }
     if (stats.weaponLevel > 0) {
-      this.gunSprite = scene.add.image(x, y, TEX.gun).setDepth(12).setOrigin(0.3, 0.5);
+      this.gunSprite = scene.add.image(x, y, TEX.gun).setDepth(12).setOrigin(0.4, 0.7);
+      const f = scene.textures.get(TEX.gun).getSourceImage();
+      this.gunSprite.setDisplaySize(70, 70 * (f.height / f.width));
     }
+
+    this.syncArt();
   }
 
   get x() {
@@ -101,17 +130,12 @@ export class Car {
   get y() {
     return this.chassis.y;
   }
-
   get angleDeg() {
     return this.chassis.angle;
   }
-
-  /** Forward (world) speed in px/step, signed. */
   get speed() {
     return (this.chassis.body as MatterJS.BodyType).velocity.x;
   }
-
-  /** Vertical velocity (px/step); positive = falling. */
   get vy() {
     return (this.chassis.body as MatterJS.BodyType).velocity.y;
   }
@@ -120,16 +144,14 @@ export class Car {
     return this.fuel <= 0;
   }
 
-  /** Is at least one wheel touching/near the ground? */
   grounded(): boolean {
     for (const w of this.wheels) {
       const surf = this.terrain.heightAt(w.x);
-      if (w.y + 28 >= surf - 6) return true;
+      if (w.y + WHEEL_R >= surf - 6) return true;
     }
     return false;
   }
 
-  /** Local-to-world transform of an offset from the chassis center. */
   private place(ox: number, oy: number): { x: number; y: number } {
     const a = Phaser.Math.DegToRad(this.chassis.angle);
     return {
@@ -138,9 +160,8 @@ export class Car {
     };
   }
 
-  /** World position of the roof gun muzzle (front-top of chassis). */
   muzzle(): { x: number; y: number; angle: number } {
-    const p = this.place(78, -26);
+    const p = this.place(82, -24);
     return { x: p.x, y: p.y, angle: Phaser.Math.DegToRad(this.chassis.angle) };
   }
 
@@ -149,28 +170,40 @@ export class Car {
     this.boostCharges--;
     this.boostCooldown = 800;
     const a = Phaser.Math.DegToRad(this.chassis.angle);
-    const force = 0.9;
     this.chassis.applyForce(
-      new Phaser.Math.Vector2(Math.cos(a) * force * 0.06, Math.sin(a) * force * 0.06 - 0.03),
+      new Phaser.Math.Vector2(Math.cos(a) * 0.054, Math.sin(a) * 0.054 - 0.03),
     );
     return true;
   }
 
-  /** Apply one zombie-cluster drag tick (called by GameScene on contact). */
   applyZombieDrag() {
     const body = this.chassis.body as MatterJS.BodyType;
     const keep = PHYSICS.zombieDrag + (1 - PHYSICS.zombieDrag) * this.stats.armor;
-    this.scene.matter.body.setVelocity(body, {
-      x: body.velocity.x * keep,
-      y: body.velocity.y,
-    });
+    this.scene.matter.body.setVelocity(body, { x: body.velocity.x * keep, y: body.velocity.y });
+  }
+
+  /** Glue every visible overlay to its physics body. */
+  private syncArt() {
+    const rad = Phaser.Math.DegToRad(this.chassis.angle);
+    this.bodyImg.setPosition(this.chassis.x, this.chassis.y).setRotation(rad);
+    for (let i = 0; i < this.wheels.length; i++) {
+      const w = this.wheels[i];
+      this.wheelImgs[i].setPosition(w.x, w.y).setRotation(Phaser.Math.DegToRad(w.angle));
+    }
+    if (this.armorSprite) {
+      const p = this.place(70, 18);
+      this.armorSprite.setPosition(p.x, p.y).setRotation(rad);
+    }
+    if (this.gunSprite) {
+      const p = this.place(6, -30);
+      this.gunSprite.setPosition(p.x, p.y).setRotation(rad);
+    }
   }
 
   update(dtMs: number, controls: CarControls) {
     const dt = dtMs / 1000;
     if (this.boostCooldown > 0) this.boostCooldown -= dtMs;
 
-    // Fuel
     this.fuel -= FUEL.idleDrainPerSec * dt;
     const wantsDrive = (controls.throttle || controls.brake) && this.fuel > 0;
     if (wantsDrive && controls.throttle) this.fuel -= FUEL.throttleDrainPerSec * dt;
@@ -195,19 +228,12 @@ export class Car {
     }
 
     if (controls.boost) this.tryBoost();
-
-    // Keep decorative upgrade sprites glued to the chassis.
-    if (this.armorSprite) {
-      const p = this.place(18, 10);
-      this.armorSprite.setPosition(p.x, p.y).setRotation(Phaser.Math.DegToRad(this.chassis.angle));
-    }
-    if (this.gunSprite) {
-      const p = this.place(8, -30);
-      this.gunSprite.setPosition(p.x, p.y).setRotation(Phaser.Math.DegToRad(this.chassis.angle));
-    }
+    this.syncArt();
   }
 
   destroy() {
+    this.bodyImg.destroy();
+    this.wheelImgs.forEach((w) => w.destroy());
     this.armorSprite?.destroy();
     this.gunSprite?.destroy();
     this.wheels.forEach((w) => w.destroy());

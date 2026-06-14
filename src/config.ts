@@ -73,6 +73,12 @@ export const TEX = {
   ramp: 'tex-ramp',
   gun: 'tex-gun',
   armorPlate: 'tex-armor',
+  vehTruck: 'tex-veh-truck',
+  vehMuscle: 'tex-veh-muscle',
+  vehRig: 'tex-veh-rig',
+  matDirt: 'tex-mat-dirt',
+  matRock: 'tex-mat-rock',
+  matSnow: 'tex-mat-snow',
 } as const;
 
 /** Kill-combo tuning: chained kills within the window multiply cash. */

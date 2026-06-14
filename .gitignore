@@ -12,3 +12,7 @@ npm-debug.log*
 
 .playwright-mcp/
 etd-*.png
+
+# art pipeline
+tools/art-raw/
+tools/*.out
